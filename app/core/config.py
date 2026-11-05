@@ -36,4 +36,22 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    # Streamlit Community Cloud stores app credentials in st.secrets rather
+    # than automatically exporting them as environment variables. Read those
+    # values when running under Streamlit, while keeping local .env and normal
+    # environment configuration available for the API and development runs.
+    secret_values = {}
+    try:
+        import streamlit as st
+
+        for field_name in Settings.model_fields:
+            secret_key = field_name.upper()
+            if secret_key in st.secrets:
+                secret_values[field_name] = st.secrets[secret_key]
+            elif field_name in st.secrets:
+                secret_values[field_name] = st.secrets[field_name]
+    except Exception:
+        # Streamlit is optional for API-only usage, and st.secrets raises when
+        # no local secrets.toml is configured. Fall back to env/.env settings.
+        pass
+    return Settings(**secret_values)
